@@ -1,6 +1,6 @@
 # GVP: Geometric Vector Perceptron
 
-## 源项目
+## 原项目
 
 https://github.com/drorlab/gvp-pytorch
 
@@ -92,6 +92,8 @@ python -c "import torch, torch_scatter, torch_cluster, torch_geometric; \
 - numpy <2.0
 - atom3d >=0.2.6
 
+### 原项目文档
+
 Implementation of equivariant GVP-GNNs as described in [Learning from Protein Structure with Geometric Vector Perceptrons](https://openreview.net/forum?id=1YLJDvSx6J4) by B Jing, S Eismann, P Suriana, RJL Townshend, and RO Dror.
 
 **UPDATE:** Also includes equivariant GNNs with vector gating as described in [Equivariant Graph Neural Networks for 3D Macromolecular Structure](https://arxiv.org/abs/2106.03843) by B Jing, S Eismann, P Soni, and RO Dror.
@@ -99,10 +101,6 @@ Implementation of equivariant GVP-GNNs as described in [Learning from Protein St
 Scripts for training / testing / sampling on protein design and training / testing on all [ATOM3D](https://arxiv.org/abs/2012.04035) tasks are provided.
 
 **Note:** This implementation is in PyTorch Geometric. The original TensorFlow code, which is not maintained, can be found [here](https://github.com/drorlab/gvp).
-
-<p align="center"><img src="schematic.png" width="400"></p>
-
-<p align="center"><img src="vectors.png" width="500"></p>
 
 ## General usage
 
