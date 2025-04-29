@@ -1,12 +1,17 @@
 # GVP: Geometric Vector Perceptron
 
+## 源项目
+
+https://github.com/drorlab/gvp-pytorch
+
 ## 安装指南
 
 GVP (Geometric Vector Perceptron) 是一个处理 3D 分子结构的深度学习框架。本指南提供详细的安装步骤以避免常见问题。
+因为过去的项目比较老， 所以对安装文件， 依赖等做了一些修改
 
 ### 环境要求
 
-- Python 3.9+ (推荐 3.9/3.10)
+- Python 3.9+ (或者 3.10/3.11)
 - 支持的平台: macOS (Intel/Apple Silicon)、Linux、Windows
 
 ### 方法一：通过 pip 安装（推荐）
