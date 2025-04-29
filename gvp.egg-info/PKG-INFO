@@ -1,91 +1,28 @@
-# GVP: Geometric Vector Perceptron
+Metadata-Version: 2.4
+Name: gvp
+Version: 0.1.2
+Summary: Geometric Vector Perceptron (modernised)
+Author-email: Your Name <you@example.com>
+License-Expression: MIT
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: torch>=2.1
+Requires-Dist: torch_geometric>=2.4
+Requires-Dist: torch_scatter>=2.1
+Requires-Dist: torch_cluster>=1.6
+Requires-Dist: tqdm>=4.66
+Requires-Dist: numpy>=1.25
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: atom3d>=0.2.6
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Provides-Extra: docs
+Requires-Dist: mkdocs; extra == "docs"
+Dynamic: license-file
 
-## 安装指南
-
-GVP (Geometric Vector Perceptron) 是一个处理 3D 分子结构的深度学习框架。本指南提供详细的安装步骤以避免常见问题。
-
-### 环境要求
-
-- Python 3.9+ (推荐 3.9/3.10)
-- 支持的平台: macOS (Intel/Apple Silicon)、Linux、Windows
-
-### 方法一：通过 pip 安装（推荐）
-
-```bash
-# 1. 创建虚拟环境
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# 或 .venv\Scripts\activate  # Windows
-
-# 2. 安装依赖
-pip install -U pip  # 更新 pip
-pip install .       # 安装项目及其依赖
-```
-
-### 方法二：通过 conda 安装
-
-```bash
-# 1. 创建环境
-conda create -n gvp python=3.11 -y
-conda activate gvp
-
-# 2. 安装 PyTorch 2.1 及其依赖
-conda install pytorch=2.1 -c pytorch -c conda-forge
-
-# 3. 安装 PyG 依赖 (PyTorch Geometric 相关包)
-conda install torch-scatter=2.1.1 torch-cluster=1.6.3 \
-              torch-sparse=0.6.18 torch-spline-conv=1.2.2 \
-              -c conda-forge
-
-# 4. 安装本项目及其余依赖
-pip install .
-```
-
-### 特殊说明：Apple Silicon Mac (M1/M2/M3)
-
-为避免在 Apple Silicon 上遇到编译问题，我们已经将所有依赖锁定到有预编译轮子的版本 (PyTorch 2.1.x 系列)。安装时不会触发复杂的 C++ 编译过程。
-
-如果单独安装组件，请使用：
-
-```bash
-# Apple Silicon Mac 上安装 PyTorch CPU 版本
-pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
-
-# 安装 PyG 相关轮子 (确保使用 CPU 版本的 wheel)
-pip install torch_scatter torch_cluster torch_sparse torch_spline_conv \
-           -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-
-# 安装主包
-pip install torch_geometric==2.5.1
-```
-
-### 验证安装
-
-安装完成后，可通过以下命令验证：
-
-```bash
-python -c "import torch, torch_scatter, torch_cluster, torch_geometric; \
-           print(f'PyTorch: {torch.__version__}, PyG: {torch_geometric.__version__}')"
-```
-
-### 常见问题与排错
-
-1. **NumPy 版本警告**：如果看到 NumPy ABI 相关警告，无需担心，我们已将依赖锁定到 `numpy<2.0`
-
-2. **找不到预编译轮子**：确保使用的是 PyTorch 2.1.x 版本，该版本有完整的 arm64/x86_64 的 CPU 轮子
-
-3. **Conda 安装时 PyG 包冲突**：尝试先只安装 PyTorch，然后用 pip 安装其余组件
-
-### 项目关键依赖
-
-- torch >=2.1,<2.2
-- torch_geometric ==2.5.1
-- torch_scatter ==2.1.1
-- torch_cluster ==1.6.3 
-- torch_sparse ==0.6.18
-- torch_spline_conv ==1.2.2
-- numpy <2.0
-- atom3d >=0.2.6
+# Geometric Vector Perceptron
 
 Implementation of equivariant GVP-GNNs as described in [Learning from Protein Structure with Geometric Vector Perceptrons](https://openreview.net/forum?id=1YLJDvSx6J4) by B Jing, S Eismann, P Suriana, RJL Townshend, and RO Dror.
 
@@ -98,6 +35,20 @@ Scripts for training / testing / sampling on protein design and training / testi
 <p align="center"><img src="schematic.png" width="400"></p>
 
 <p align="center"><img src="vectors.png" width="500"></p>
+
+## Requirements
+* UNIX environment
+* python==3.6.13
+* torch==1.8.1
+* torch_geometric==1.7.0
+* torch_scatter==2.0.6
+* torch_cluster==1.5.9
+* tqdm==4.38.0
+* numpy==1.19.4
+* sklearn==0.24.1
+* atom3d==0.2.1
+
+While we have not tested with other versions, any reasonably recent versions of these requirements should work.
 
 ## General usage
 

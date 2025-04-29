@@ -1,0 +1,36 @@
+[project]
+name = "gvp"
+version = "0.1.2"
+description = "Geometric Vector Perceptron (modernised)"
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Your Name", email = "you@example.com"}]
+
+# 核心依赖：统一锁定到 PyTorch 2.1 生态（官方已提供 CPU/GPU 轮子）
+dependencies = [
+  "torch>=2.1,<2.2",         # PyTorch 2.1.* 兼顾稳定与兼容
+  "torch_geometric==2.5.1",  # 对应 2.1 生态的最新稳定版
+  "torch_scatter==2.1.1",
+  "torch_cluster==1.6.3",
+  "torch_sparse==0.6.18",
+  "torch_spline_conv==1.2.2",
+
+  # ───── 通用库 ─────
+  "numpy<2.0",               # 锁在 1.x，避免 ABI 冲突
+  "tqdm>=4.66,<5",
+  "scikit-learn>=1.3,<1.5",
+  "atom3d>=0.2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "ruff"]
+docs = ["mkdocs"]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# 新增一节，限定包发现规则
+[tool.setuptools.packages.find]
+include = ["gvp*"]                 # 只打包 gvp 及子模块
+exclude = ["data*"]                # 明确排除 data 目录
