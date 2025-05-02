@@ -46,6 +46,50 @@ conda install torch-scatter=2.1.1 torch-cluster=1.6.3 \
 pip install .
 ```
 
+### 方法三：CUDA 12.4 用户安装指南（推荐）
+
+对于使用 CUDA 12.4 的用户，请使用以下脚本进行安装：
+
+```bash
+#!/bin/bash
+
+# 创建虚拟环境（如果使用 venv）
+python -m venv .venv_gvp
+source .venv_gvp/bin/activate
+
+# 更新 pip
+pip install --upgrade pip
+
+# 安装 PyTorch 2.1.2 (CUDA 12.1 版本，兼容 CUDA 12.4)
+pip install torch==2.1.2 --index-url https://download.pytorch.org/whl/cu121
+
+# 安装基础依赖（指定版本以避免冲突）
+pip install numpy==1.24.3 scipy==1.10.1 scikit-learn==1.3.2
+pip install packaging pillow pyparsing pytz ninja
+
+# 安装 PyG 相关依赖（使用预编译轮子）
+pip install torch-scatter==2.1.1 torch-sparse==0.6.18 torch-cluster==1.6.3 torch-spline-conv==1.2.2 \
+    -f https://data.pyg.org/whl/torch-2.1.0+cu121.html
+
+# 安装 PyG 主包
+pip install torch-geometric==2.5.1
+
+# 安装 atom3d
+pip install atom3d>=0.2.6
+
+# 安装项目（开发模式）
+pip install -e .
+
+echo "GVP 安装完成！"
+```
+
+将上述内容保存为 `install_cuda124.sh`，然后执行：
+
+```bash
+chmod +x install_cuda124.sh
+./install_cuda124.sh
+```
+
 ### 特殊说明：Apple Silicon Mac (M1/M2/M3)
 
 为避免在 Apple Silicon 上遇到编译问题，我们已经将所有依赖锁定到有预编译轮子的版本 (PyTorch 2.1.x 系列)。安装时不会触发复杂的 C++ 编译过程。
@@ -73,6 +117,38 @@ python -c "import torch, torch_scatter, torch_cluster, torch_geometric; \
            print(f'PyTorch: {torch.__version__}, PyG: {torch_geometric.__version__}')"
 ```
 
+对于 CUDA 用户，可以使用以下脚本验证 CUDA 支持：
+
+```python
+import torch
+import torch_geometric
+import torch_scatter
+import torch_cluster
+import torch_sparse
+import torch_spline_conv
+import numpy
+import scipy
+import sklearn
+import gvp
+
+print("\n===== GVP 安装验证 =====\n")
+print(f"PyTorch 版本: {torch.__version__}")
+print(f"PyG 版本: {torch_geometric.__version__}")
+print(f"NumPy 版本: {numpy.__version__}")
+print(f"SciPy 版本: {scipy.__version__}")
+print(f"scikit-learn 版本: {sklearn.__version__}")
+print(f"CUDA 是否可用: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"CUDA 版本: {torch.version.cuda}")
+    print(f"当前 CUDA 设备: {torch.cuda.get_device_name(0)}")
+    
+    # 测试 CUDA 功能
+    x = torch.rand(5, 5).cuda()
+    print(f"\nCUDA 张量测试: {x.device}")
+```
+
+将上述内容保存为 `verify_install.py` 并运行 `python verify_install.py`。
+
 ### 常见问题与排错
 
 1. **NumPy 版本警告**：如果看到 NumPy ABI 相关警告，无需担心，我们已将依赖锁定到 `numpy<2.0`
@@ -81,15 +157,19 @@ python -c "import torch, torch_scatter, torch_cluster, torch_geometric; \
 
 3. **Conda 安装时 PyG 包冲突**：尝试先只安装 PyTorch，然后用 pip 安装其余组件
 
+4. **CUDA 版本兼容性**：PyTorch 官方预编译版本目前最高支持 CUDA 12.1，但通常与 CUDA 12.4 兼容
+
 ### 项目关键依赖
 
-- torch >=2.1,<2.2
+- torch ==2.1.2
 - torch_geometric ==2.5.1
 - torch_scatter ==2.1.1
 - torch_cluster ==1.6.3 
 - torch_sparse ==0.6.18
 - torch_spline_conv ==1.2.2
-- numpy <2.0
+- numpy ==1.24.3
+- scipy ==1.10.1
+- scikit-learn ==1.3.2
 - atom3d >=0.2.6
 
 ### 原项目文档
@@ -140,108 +220,18 @@ gvp_ = gvp.GVP(in_dims, out_dims,
 The classes `gvp.Dropout` and `gvp.LayerNorm` implement vector-channel dropout and layer norm, while using normal dropout and layer norm for scalar channels. Both expect inputs and return outputs of form `(s, V)`, but will also behave like their scalar-valued counterparts if passed a single tensor.
 ```
 dropout = gvp.Dropout(drop_rate=0.1)
-layernorm = gvp.LayerNorm(out_dims)
-```
-The function `gvp.randn` returns tuples `(s, V)` drawn from a standard normal. Such tuples can be directly used in a forward pass.
-```
-x = gvp.randn(n=5, dims=in_dims)
-# x = (s, V) with s.shape = [5, scalars_in] and V.shape = [5, vectors_in, 3]
-
-out = gvp_(x)
-out = drouput(out)
-out = layernorm(out)
-```
-Finally, we provide utility functions for adding, concatenating, and indexing into such tuples.
-```
-y = gvp.randn(n=5, dims=in_dims)
-z = gvp.tuple_sum(x, y)
-z = gvp.tuple_cat(x, y, dim=-1) # concat along channel axis
-z = gvp.tuple_cat(x, y, dim=-2) # concat along node / batch axis
-
-node_mask = torch.rand(5) < 0.5
-z = gvp.tuple_index(x, node_mask) # select half the nodes / batch at random
-```
-### GVP-GNN layers
-The class `GVPConv` is a `torch_geometric.MessagePassing` module which forms messages and aggregates them at the destination node, returning new node embeddings. The original embeddings are not updated.
-```
-nodes = gvp.randn(n=5, in_dims)
-edges = gvp.randn(n=10, edge_dims) # 10 random edges
-edge_index = torch.randint(0, 5, (2, 10), device=device)
-
-conv = gvp.GVPConv(in_dims, out_dims, edge_dims)
-out = conv(nodes, edge_index, edges)
-```
-The class `GVPConvLayer` is a `nn.Module` that forms messages using a `GVPConv` and updates the node embeddings as described in the paper. Because the updates are residual, the dimensionality of the embeddings are not changed.
-```
-layer = gvp.GVPConvLayer(node_dims, edge_dims)
-nodes = layer(nodes, edge_index, edges)
-```
-The class also allows updates where incoming messages where src >= dst are computed using a different set of source embeddings, as in autoregressive models.
-```
-nodes_static = gvp.randn(n=5, in_dims)
-layer = gvp.GVPConvLayer(node_dims, edge_dims, autoregressive=True)
-nodes = layer(nodes, edge_index, edges, autoregressive_x=nodes_static)
-```
-Both `GVPConv` and `GVPConvLayer` accept arguments `activations` and `vector_gate` to use vector gating.
-
-### Loading data 
-
-The class `gvp.data.ProteinGraphDataset` transforms protein backbone structures into featurized graphs. Following [Ingraham, et al, NeurIPS 2019](https://github.com/jingraham/neurips19-graph-protein-design), we use a JSON/dictionary format to specify backbone structures:
-
-```
-[
-    {
-        "name": "NAME"
-        "seq": "TQDCSFQHSP...",
-        "coords": [[[74.46, 58.25, -21.65],...],...]
-    }
-    ...
-]
-```
-For each structure, `coords` should be a `num_residues x 4 x 3` nested list of the positions of the backbone N, C-alpha, C, and O atoms of each residue (in that order).
-```
-import gvp.data
-
-# structures is a list or list-like as shown above
-dataset = gvp.data.ProteinGraphDataset(structures)
-# dataset[i] is featurized graph corresponding to structures[i]
-```
-The returned graphs are of type `torch_geometric.data.Data` with attributes
-* `x`: alpha carbon coordinates
-* `seq`: sequence converted to int tensor according to attribute `self.letter_to_num`
-* `name`, `edge_index`
-* `node_s`, `node_v`: node features as described in the paper with dims `(6, 3)`
-* `edge_s`, `edge_v`: edge features as described in the paper with dims `(32, 1)`
-* `mask`: false for nodes with any nan coordinates
-
-The `gvp.data.ProteinGraphDataset` can be used with a `torch.utils.data.DataLoader`. We supply a class `gvp.data.BatchSampler` which will form batches based on the number of total nodes in a batch. Use of this sampler is optional.
-```
-node_counts = [len(s['seq']) for s in structures]
-sampler = gvp.data.BatchSampler(node_counts, max_nodes=3000)
-dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler)
-```
-The dataloader will return batched graphs of type `torch_geometric.data.Batch` with an additional `batch` attibute. The attributes of the `Batch` will then need to be formed into `(s, V)` tuples before passing into a GVP-GNN layer or network.
-```
-for batch in dataloader:
-    batch = batch.to(device) # optional
-    nodes = (batch.node_s, batch.node_v)
-    edges = (batch.edge_s, batch.edge_v)
-    
-    out = layer(nodes, batch.edge_index, edges)
+layer_norm = gvp.LayerNorm(dims)
 ```
 
-### Ready-to-use protein GNNs
-We provide two fully specified networks which take in protein graphs and output a scalar prediction for each graph (`gvp.models.MQAModel`) or a 20-dimensional feature vector for each node (`gvp.models.CPDModel`), corresponding to the two tasks in our paper. Note that if you are using the unmodified `gvp.data.ProteinGraphDataset`, `node_in_dims` and `edge_in_dims` must be `(6, 3)` and `(32, 1)`, respectively.
+The class `gvp.GVPConvLayer` implements a GVP-GNN layer, which includes a GVP for messages, a GVP for nodes, and residual connections. The class `gvp.GVPConv` implements the message passing step.
 ```
-import gvp.models
+conv_layer = gvp.GVPConvLayer(node_dims, edge_dims, drop_rate=0.1)
+```
 
-# batch, nodes, edges as formed above
+### Protein design
 
-mqa_model = gvp.models.MQAModel(node_in_dim, node_h_dim, 
-                        edge_in_dim, edge_h_dim, seq_in=True)
-out = mqa_model(nodes, batch.edge_index, edges,
-                 seq=batch.seq, batch=batch.batch) # shape (n_graphs,)
-
+The class `gvp.models.CPDModel` implements a conditional protein design model, which takes in a protein structure and predicts a sequence.
+```
 cpd_model = gvp.models.CPDModel(node_in_dim, node_h_dim, 
                         edge_in_dim, edge_h_dim)
 out = cpd_model(nodes, batch.edge_index, 
