@@ -13,6 +13,15 @@ import torch.nn as nn
 import torch
 import argparse
 
+# 添加 CUDA 优化设置
+if torch.cuda.is_available():
+    # 设置 TF32 精度（在 Ampere 及更高架构上可用）
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    
+    # 设置 cudnn 基准模式
+    torch.backends.cudnn.benchmark = True
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--models-dir', metavar='PATH', default='./models/',
                     help='directory to save trained models, default=./models/')
@@ -54,7 +63,8 @@ model_id = int(datetime.timestamp(datetime.now()))
 def dataloader(x): return DataLoader(x,
                                      num_workers=args.num_workers,
                                      batch_sampler=gvp.data.BatchSampler(
-                                         x.node_counts, max_nodes=args.max_nodes))
+                                         x.node_counts, max_nodes=args.max_nodes),
+                                     persistent_workers=True if args.num_workers > 0 else False)
 
 
 def main():
@@ -92,11 +102,12 @@ def train(model, trainset, valset, testset):
     train_loader, val_loader, test_loader = map(dataloader,
                                                 (trainset, valset, testset))
     optimizer = torch.optim.Adam(model.parameters())
+    scaler = torch.cuda.amp.GradScaler()
     best_path, best_val = None, np.inf
     lookup = train_loader.dataset.num_to_letter
     for epoch in range(args.epochs):
         model.train()
-        loss, acc, confusion = loop(model, train_loader, optimizer=optimizer)
+        loss, acc, confusion = loop(model, train_loader, optimizer=optimizer, scaler=scaler)
         path = f"{args.models_dir}/{model_id}_{epoch}.pt"
         torch.save(model.state_dict(), path)
         print(f'EPOCH {epoch} TRAIN loss: {loss:.4f} acc: {acc:.4f}')
@@ -148,7 +159,7 @@ def test_recovery(model, dataset):
     print(f'TEST recovery: {recovery:.4f}')
 
 
-def loop(model, dataloader, optimizer=None):
+def loop(model, dataloader, optimizer=None, scaler=None):
 
     confusion = np.zeros((20, 20))
     t = tqdm.tqdm(dataloader)
@@ -163,13 +174,24 @@ def loop(model, dataloader, optimizer=None):
         h_V = (batch.node_s, batch.node_v)
         h_E = (batch.edge_s, batch.edge_v)
 
-        logits = model(h_V, batch.edge_index, h_E, seq=batch.seq)
-        logits, seq = logits[batch.mask], batch.seq[batch.mask]
-        loss_value = loss_fn(logits, seq)
-
-        if optimizer:
-            loss_value.backward()
-            optimizer.step()
+        # 使用混合精度训练（仅在训练时）
+        if scaler is not None and optimizer is not None:
+            with torch.cuda.amp.autocast():
+                logits = model(h_V, batch.edge_index, h_E, seq=batch.seq)
+                logits, seq = logits[batch.mask], batch.seq[batch.mask]
+                loss_value = loss_fn(logits, seq)
+            
+            scaler.scale(loss_value).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            logits = model(h_V, batch.edge_index, h_E, seq=batch.seq)
+            logits, seq = logits[batch.mask], batch.seq[batch.mask]
+            loss_value = loss_fn(logits, seq)
+            
+            if optimizer:
+                loss_value.backward()
+                optimizer.step()
 
         num_nodes = int(batch.mask.sum())
         total_loss += float(loss_value) * num_nodes
